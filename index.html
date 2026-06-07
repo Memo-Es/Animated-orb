@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Animated Orb · Playground</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  background: #0f0f0f;
+  color: #d0d0d0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── Top bar ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 46px;
+  background: #111;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+  z-index: 20;
+}
+.topbar h1 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+.status {
+  margin-left: auto;
+  font-size: 11px;
+  color: #555;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: 0.02em;
+}
+
+/* ── Workspace ── */
+.workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Preview ── */
+.preview {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #07070b;
+}
+
+/* ── Orb stage ── */
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+.texture {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  image-rendering: auto;
+}
+.goo {
+  position: absolute; inset: 0;
+  filter: url(#goo);
+  will-change: filter;
+}
+.goo > canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+.overlay-layer {
+  position: absolute; inset: 0;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.grain-layer {
+  position: absolute;
+  inset: -50%;
+  width: 200%; height: 200%;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  background-size: 180px 180px;
+  animation: grainShift 0.6s steps(2) infinite;
+}
+@keyframes grainShift {
+  0%   { transform: translate(0,0); }
+  50%  { transform: translate(-6%,4%); }
+  100% { transform: translate(3%,-5%); }
+}
+.vignette {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%);
+}
+
+/* ── Export button (overlaid on preview) ── */
+.export-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  background: rgba(22,22,22,0.88);
+  border: 1px solid #2e2e2e;
+  color: #ccc;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: background 0.15s;
+}
+.export-btn:hover { background: rgba(38,38,38,0.95); color: #fff; }
+
+/* ── Toolbar ── */
+.toolbar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  z-index: 10;
+}
+.toolbar-hint {
+  font-size: 11px;
+  color: #444;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  flex: 1;
+}
+
+/* ── Buttons ── */
+.btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid #2e2e2e;
+  background: #1a1a1a;
+  color: #aaa;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.btn:hover { background: #242424; color: #e0e0e0; }
+.btn.accent { border-color: #3a3a3a; background: #222; color: #ccc; }
+
+/* ── Right panel ── */
+.panel {
+  width: 340px;
+  flex-shrink: 0;
+  background: #131313;
+  border-left: 1px solid #1e1e1e;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.panel::-webkit-scrollbar { width: 3px; }
+.panel::-webkit-scrollbar-track { background: transparent; }
+.panel::-webkit-scrollbar-thumb { background: #252525; border-radius: 2px; }
+
+/* ── Panel sections ── */
+.section {
+  padding: 18px 20px;
+  border-bottom: 1px solid #1a1a1a;
+}
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #444;
+  margin-bottom: 16px;
+}
+.divider {
+  height: 1px;
+  background: #1e1e1e;
+  margin: 14px 0;
+}
+
+/* ── Slider rows ── */
+.slider-row { margin-bottom: 15px; }
+.slider-row:last-child { margin-bottom: 0; }
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.slider-label { font-size: 13px; color: #b0b0b0; }
+.slider-val { font-size: 11px; color: #555; font-family: 'SF Mono','Fira Code',monospace; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  background: #252525;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  background: #e8e8e8;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+input[type=range]::-moz-range-thumb {
+  width: 13px; height: 13px;
+  background: #e8e8e8;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+/* ── Color rows ── */
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.color-row:last-child { margin-bottom: 0; }
+
+.swatch-wrap {
+  position: relative;
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  border: 1px solid #2e2e2e;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.swatch-wrap input[type=color] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.color-name {
+  font-size: 12px;
+  color: #666;
+  font-family: 'SF Mono','Fira Code',monospace;
+  flex: 1;
+}
+
+.remove-btn {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1px solid #2e2e2e;
+  background: transparent;
+  color: #555;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.remove-btn:hover { background: #2a1010; color: #e05555; border-color: #4a2020; }
+
+.sub-label {
+  font-size: 11px;
+  color: #444;
+  margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Animated Orb</h1>
+  <div class="status" id="status">orbs 5 · speed 1.0 · glow 0.9</div>
+</div>
+
+<div class="workspace">
+
+  <!-- Preview -->
+  <div class="preview" id="preview">
+    <div class="stage" id="stage">
+      <img class="texture" alt="" aria-hidden="true"
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAA00lEQVR42gHIADf/Af788OwBDv4BAP8AAPz+APv7/+Xu+wYEBAHf9v7q9/4GBAMIBQADAQAFAPj6+O/8/QsBksLN5fUQ/P3+DAT1DgLuCvvfBP/zHx84AWCfrfL6FO/kzQH01wD03QD++PwGHBseNAGw2erZ5PDGwqX04cUA+/v7/gX3+wMJChABwuf3BP7vubul5NzP6urt7O33x9fCRUBwAYKlsCce+//83Nfb1t3j+NHU4RQGGkpPXAGwwcHa3MkiKRsDBg33+Qnf2t8UCw0nJiufFm95mfw9JgAAAABJRU5ErkJggg==" />
+      <div class="goo">
+        <canvas id="orbCanvas"></canvas>
+      </div>
+      <div class="overlay-layer" id="overlayEl"></div>
+      <div class="grain-layer" id="grainEl"></div>
+      <div class="vignette"></div>
+    </div>
+
+    <button class="export-btn" id="exportBtn">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+        <path d="M6.5 1.5v7M4 6l2.5 2.5L9 6M1.5 11h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Export
+    </button>
+
+    <div class="toolbar">
+      <span class="toolbar-hint">Orbs fuse via SVG gooey filter · adjust colors and motion live</span>
+      <button class="btn accent" id="addOrbBtn">+ Add orb</button>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <!-- Controls panel -->
+  <aside class="panel" id="panel"></aside>
+</div>
+
+<!-- Gooey SVG filter -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+  <defs>
+    <filter id="goo" color-interpolation-filters="sRGB"
+            x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="22" result="blur" id="gooBlur1"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 10 -4.2"
+        result="goo" id="gooMatrix"/>
+      <feGaussianBlur in="goo" stdDeviation="6" result="soft" id="gooBlur2"/>
+      <feComposite in="soft" in2="soft" operator="over"/>
+    </filter>
+  </defs>
+</svg>
+
+<script>
+(() => {
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const DEFAULTS = {
+  bg:              '#07070b',
+  orbs:            ['#6d5cff','#2f6bff','#00c2c7','#b14bff','#ff5ca8'],
+  blobSize:        0.42,
+  speed:           1.0,
+  gooBlur:         22,
+  gooCutoff:       10,
+  glow:            0.9,
+  grain:           0.06,
+  overlayTint:     '#aab4ff',
+  overlayStrength: 0.35,
+};
+
+let S = clone(DEFAULTS);
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const canvas    = document.getElementById('orbCanvas');
+const ctx       = canvas.getContext('2d');
+const preview   = document.getElementById('preview');
+const stageEl   = document.getElementById('stage');
+const overlayEl = document.getElementById('overlayEl');
+const grainEl   = document.getElementById('grainEl');
+const panelEl   = document.getElementById('panel');
+const statusEl  = document.getElementById('status');
+
+// ── Apply state → CSS + DOM ───────────────────────────────────────────────────
+function applyState() {
+  const r = document.documentElement;
+
+  // background
+  r.style.setProperty('--bg', S.bg);
+  preview.style.background = S.bg;
+  stageEl.style.background = S.bg;
+
+  // orb palette vars
+  S.orbs.forEach((c, i) => r.style.setProperty(`--orb-${i+1}`, c));
+  for (let i = S.orbs.length + 1; i <= 12; i++) r.style.removeProperty(`--orb-${i}`);
+
+  // motion / appearance vars
+  r.style.setProperty('--blob-size',        S.blobSize);
+  r.style.setProperty('--speed',            S.speed);
+  r.style.setProperty('--goo-blur',         S.gooBlur);
+  r.style.setProperty('--goo-cutoff',       S.gooCutoff);
+  r.style.setProperty('--glow',             S.glow);
+  r.style.setProperty('--grain',            S.grain);
+  r.style.setProperty('--overlay-tint',     S.overlayTint);
+  r.style.setProperty('--overlay-strength', S.overlayStrength);
+
+  // overlay div
+  overlayEl.style.background = `radial-gradient(120% 120% at 50% 0%, ${S.overlayTint} 0%, transparent 55%)`;
+  overlayEl.style.opacity = S.overlayStrength;
+
+  // grain opacity
+  grainEl.style.opacity = S.grain;
+
+  // sync SVG filter nodes live
+  document.getElementById('gooBlur1').setAttribute('stdDeviation', S.gooBlur);
+  document.getElementById('gooMatrix').setAttribute('values',
+    `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${S.gooCutoff} ${-(S.gooCutoff * 0.42).toFixed(2)}`);
+
+  // status line
+  statusEl.textContent = `orbs ${S.orbs.length} · speed ${S.speed.toFixed(1)} · glow ${S.glow.toFixed(1)}`;
+
+  // sync orb colors / count
+  makeOrbs();
+}
+
+// ── Panel builder ─────────────────────────────────────────────────────────────
+function buildPanel() {
+  panelEl.innerHTML = '';
+
+  function section(title, fn) {
+    const el = document.createElement('div');
+    el.className = 'section';
+    const h = document.createElement('div');
+    h.className = 'section-title';
+    h.textContent = title;
+    el.appendChild(h);
+    fn(el);
+    panelEl.appendChild(el);
+  }
+
+  function sliderRow(parent, label, key, min, max, step, fmt) {
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    const hdr = document.createElement('div');
+    hdr.className = 'slider-header';
+    const lbl = document.createElement('span');
+    lbl.className = 'slider-label';
+    lbl.textContent = label;
+    const val = document.createElement('span');
+    val.className = 'slider-val';
+    val.textContent = fmt(S[key]);
+    hdr.appendChild(lbl);
+    hdr.appendChild(val);
+    const inp = document.createElement('input');
+    inp.type = 'range';
+    inp.min = min; inp.max = max; inp.step = step;
+    inp.value = S[key];
+    inp.addEventListener('input', () => {
+      S[key] = parseFloat(inp.value);
+      val.textContent = fmt(S[key]);
+      applyState();
+    });
+    row.appendChild(hdr);
+    row.appendChild(inp);
+    parent.appendChild(row);
+  }
+
+  function colorPicker(parent, label, get, set) {
+    const row = document.createElement('div');
+    row.className = 'color-row';
+    const wrap = document.createElement('div');
+    wrap.className = 'swatch-wrap';
+    wrap.style.background = get();
+    const inp = document.createElement('input');
+    inp.type = 'color';
+    inp.value = get();
+    inp.addEventListener('input', () => {
+      wrap.style.background = inp.value;
+      set(inp.value);
+      applyState();
+    });
+    wrap.appendChild(inp);
+    const lbl = document.createElement('span');
+    lbl.className = 'color-name';
+    lbl.textContent = label;
+    row.appendChild(wrap);
+    row.appendChild(lbl);
+    parent.appendChild(row);
+  }
+
+  // ── PALETTE ──
+  section('Palette', sec => {
+    colorPicker(sec, 'Background', () => S.bg, v => S.bg = v);
+
+    const div = document.createElement('div');
+    div.className = 'divider';
+    sec.appendChild(div);
+
+    const sub = document.createElement('div');
+    sub.className = 'sub-label';
+    sub.textContent = 'Orb colors';
+    sec.appendChild(sub);
+
+    S.orbs.forEach((color, i) => {
+      const row = document.createElement('div');
+      row.className = 'color-row';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'swatch-wrap';
+      wrap.style.background = color;
+      const inp = document.createElement('input');
+      inp.type = 'color';
+      inp.value = color;
+      inp.addEventListener('input', () => {
+        wrap.style.background = inp.value;
+        S.orbs[i] = inp.value;
+        applyState();
+      });
+      wrap.appendChild(inp);
+
+      const lbl = document.createElement('span');
+      lbl.className = 'color-name';
+      lbl.textContent = `Orb ${i + 1}`;
+
+      const rm = document.createElement('button');
+      rm.className = 'remove-btn';
+      rm.textContent = '×';
+      rm.title = 'Remove';
+      rm.addEventListener('click', () => {
+        if (S.orbs.length <= 1) return;
+        S.orbs.splice(i, 1);
+        buildPanel();
+        applyState();
+      });
+
+      row.appendChild(wrap);
+      row.appendChild(lbl);
+      row.appendChild(rm);
+      sec.appendChild(row);
+    });
+  });
+
+  // ── MOTION ──
+  section('Motion', sec => {
+    sliderRow(sec, 'Speed', 'speed', 0.1, 3, 0.05, v => v.toFixed(2) + '×');
+    sliderRow(sec, 'Blob size', 'blobSize', 0.1, 0.8, 0.01, v => v.toFixed(2));
+  });
+
+  // ── FUSION ──
+  section('Fusion', sec => {
+    sliderRow(sec, 'Blur', 'gooBlur', 5, 40, 1, v => v + 'px');
+    sliderRow(sec, 'Cutoff', 'gooCutoff', 2, 25, 1, v => String(v));
+  });
+
+  // ── APPEARANCE ──
+  section('Appearance', sec => {
+    sliderRow(sec, 'Glow', 'glow', 0, 1.5, 0.05, v => v.toFixed(2));
+    sliderRow(sec, 'Grain', 'grain', 0, 0.2, 0.005, v => v.toFixed(3));
+
+    const div = document.createElement('div');
+    div.className = 'divider';
+    sec.appendChild(div);
+
+    // Overlay tint — inline color + slider
+    {
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      const hdr = document.createElement('div');
+      hdr.className = 'slider-header';
+      const lbl = document.createElement('span');
+      lbl.className = 'slider-label';
+      lbl.textContent = 'Overlay tint';
+      const wrap = document.createElement('div');
+      wrap.className = 'swatch-wrap';
+      wrap.style.cssText = `background:${S.overlayTint};width:20px;height:20px;border-radius:4px;`;
+      const tinp = document.createElement('input');
+      tinp.type = 'color';
+      tinp.value = S.overlayTint;
+      tinp.addEventListener('input', () => {
+        wrap.style.background = tinp.value;
+        S.overlayTint = tinp.value;
+        applyState();
+      });
+      wrap.appendChild(tinp);
+      hdr.appendChild(lbl);
+      hdr.appendChild(wrap);
+      row.appendChild(hdr);
+      sec.appendChild(row);
+    }
+
+    sliderRow(sec, 'Overlay strength', 'overlayStrength', 0, 1, 0.05, v => v.toFixed(2));
+  });
+}
+
+// ── Orb animation ─────────────────────────────────────────────────────────────
+let W = 0, H = 0, DPR = 1;
+let orbs = [];
+
+function makeOrbs() {
+  const n = S.orbs.length;
+  // update colors for existing orbs
+  for (let i = 0; i < Math.min(n, orbs.length); i++) orbs[i].color = S.orbs[i];
+  // add new orbs
+  while (orbs.length < n) {
+    const i = orbs.length;
+    orbs.push({
+      color:      S.orbs[i],
+      phx:        Math.random() * Math.PI * 2,
+      phy:        Math.random() * Math.PI * 2,
+      fx:         0.05 + Math.random() * 0.1,
+      fy:         0.05 + Math.random() * 0.1,
+      ax:         0.08 + Math.random() * 0.12,
+      ay:         0.08 + Math.random() * 0.12,
+      cx:         0.5  + (Math.random() - 0.5) * 0.26,
+      cy:         0.5  + (Math.random() - 0.5) * 0.26,
+      sizeMul:    0.75 + Math.random() * 0.6,
+      breathPh:   Math.random() * Math.PI * 2,
+      breathFreq: 0.15 + Math.random() * 0.25,
+    });
+  }
+  // trim extras
+  orbs.length = n;
+}
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  W = Math.max(1, rect.width);
+  H = Math.max(1, rect.height);
+  canvas.width  = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+const _probe = document.createElement('canvas').getContext('2d');
+function toRGB(color) {
+  _probe.fillStyle = '#000';
+  _probe.fillStyle = color;
+  const s = _probe.fillStyle;
+  if (s[0] === '#') {
+    const h = s.length === 4
+      ? s.slice(1).split('').map(c => c + c).join('')
+      : s.slice(1);
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  const m = s.match(/\d+(\.\d+)?/g);
+  return m ? [+m[0], +m[1], +m[2]] : [120, 120, 255];
+}
+
+const start = performance.now();
+
+function frame(now) {
+  const t  = (now - start) / 1000;
+  const tt = t * S.speed;
+  const ms = Math.min(W, H);
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+
+  for (const o of orbs) {
+    const x = (o.cx + Math.sin(tt * o.fx * Math.PI + o.phx) * o.ax) * W;
+    const y = (o.cy + Math.cos(tt * o.fy * Math.PI + o.phy) * o.ay) * H;
+    const br = 1 + 0.18 * Math.sin(tt * o.breathFreq * Math.PI + o.breathPh);
+    const r  = ms * S.blobSize * o.sizeMul * br;
+
+    const [rr, gg, bb] = toRGB(o.color);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0,    `rgba(${rr},${gg},${bb},${(0.95 * S.glow).toFixed(3)})`);
+    g.addColorStop(0.45, `rgba(${rr},${gg},${bb},${(0.45 * S.glow).toFixed(3)})`);
+    g.addColorStop(1,    `rgba(${rr},${gg},${bb},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  requestAnimationFrame(frame);
+}
+
+// ── Grain ─────────────────────────────────────────────────────────────────────
+function buildGrain() {
+  const s = 90;
+  const gc = document.createElement('canvas');
+  gc.width = gc.height = s;
+  const gx = gc.getContext('2d');
+  const img = gx.createImageData(s, s);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = (Math.random() * 255) | 0;
+    img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+  gx.putImageData(img, 0, 0);
+  grainEl.style.backgroundImage = `url(${gc.toDataURL()})`;
+}
+
+// ── Add orb ───────────────────────────────────────────────────────────────────
+const NEW_COLORS = ['#ff7b54','#ffcc5c','#96e6a1','#56cbf9','#e040fb','#ff4081','#64ffda','#ffd460'];
+let newColorIdx = 0;
+
+document.getElementById('addOrbBtn').addEventListener('click', () => {
+  if (S.orbs.length >= 12) return;
+  S.orbs.push(NEW_COLORS[newColorIdx++ % NEW_COLORS.length]);
+  buildPanel();
+  applyState();
+});
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+document.getElementById('resetBtn').addEventListener('click', () => {
+  S = clone(DEFAULTS);
+  newColorIdx = 0;
+  buildPanel();
+  applyState();
+});
+
+// ── Export ────────────────────────────────────────────────────────────────────
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const orbVarLines = S.orbs.map((c, i) => '    --orb-' + (i+1) + ': ' + c + ';').join('\n');
+  const snap = JSON.stringify(S);
+
+  const html = [
+    '<!DOCTYPE html>',
+    '<html lang="en">',
+    '<head>',
+    '<meta charset="UTF-8" />',
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+    '<title>Animated Orb — Ambient Background</title>',
+    '<style>',
+    '  :root {',
+    '    --bg: ' + S.bg + ';',
+    orbVarLines,
+    '    --blob-size: ' + S.blobSize + ';',
+    '    --speed: ' + S.speed + ';',
+    '    --goo-blur: ' + S.gooBlur + ';',
+    '    --goo-cutoff: ' + S.gooCutoff + ';',
+    '    --glow: ' + S.glow + ';',
+    '    --grain: ' + S.grain + ';',
+    '    --overlay-tint: ' + S.overlayTint + ';',
+    '    --overlay-strength: ' + S.overlayStrength + ';',
+    '  }',
+    '  * { margin:0; padding:0; box-sizing:border-box; }',
+    '  html,body { width:100%; height:100%; }',
+    '  body { background:var(--bg); overflow:hidden; }',
+    '  .stage { position:fixed; inset:0; overflow:hidden; background:var(--bg); isolation:isolate; }',
+    '  .texture { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.5; mix-blend-mode:soft-light; pointer-events:none; }',
+    '  .goo { position:absolute; inset:0; filter:url(#goo); will-change:filter; }',
+    '  .goo>canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }',
+    '  .overlay { position:absolute; inset:0; mix-blend-mode:overlay; pointer-events:none; background:radial-gradient(120% 120% at 50% 0%,var(--overlay-tint) 0%,transparent 55%); opacity:var(--overlay-strength); }',
+    '  .grain { position:absolute; inset:-50%; width:200%; height:200%; pointer-events:none; mix-blend-mode:overlay; opacity:var(--grain); background-size:180px 180px; animation:gs 0.6s steps(2) infinite; }',
+    '  @keyframes gs { 0%{transform:translate(0,0)} 50%{transform:translate(-6%,4%)} 100%{transform:translate(3%,-5%)} }',
+    '  .vignette { position:absolute; inset:0; pointer-events:none; background:radial-gradient(120% 100% at 50% 50%,transparent 55%,rgba(0,0,0,0.55) 100%); }',
+    '</style>',
+    '</head>',
+    '<body>',
+    '  <div class="stage">',
+    '    <img class="texture" alt="" aria-hidden="true" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAA00lEQVR42gHIADf/Af788OwBDv4BAP8AAPz+APv7/+Xu+wYEBAHf9v7q9/4GBAMIBQADAQAFAPj6+O/8/QsBksLN5fUQ/P3+DAT1DgLuCvvfBP/zHx84AWCfrfL6FO/kzQH01wD03QD++PwGHBseNAGw2erZ5PDGwqX04cUA+/v7/gX3+wMJChABwuf3BP7vubul5NzP6urt7O33x9fCRUBwAYKlsCce+//83Nfb1t3j+NHU4RQGGkpPXAGwwcHa3MkiKRsDBg33+Qnf2t8UCw0nJiufFm95mfw9JgAAAABJRU5ErkJggg==" />',
+    '    <div class="goo"><canvas id="c"></canvas></div>',
+    '    <div class="overlay"></div>',
+    '    <div class="grain" id="g"></div>',
+    '    <div class="vignette"></div>',
+    '  </div>',
+    '  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>',
+    '    <filter id="goo" color-interpolation-filters="sRGB" x="-20%" y="-20%" width="140%" height="140%">',
+    '      <feGaussianBlur in="SourceGraphic" stdDeviation="' + S.gooBlur + '" result="blur"/>',
+    '      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ' + S.gooCutoff + ' ' + (-(S.gooCutoff*0.42)).toFixed(2) + '" result="goo"/>',
+    '      <feGaussianBlur in="goo" stdDeviation="6" result="soft"/>',
+    '      <feComposite in="soft" in2="soft" operator="over"/>',
+    '    </filter>',
+    '  </defs></svg>',
+    '  <script>',
+    '  (()=>{',
+    '    const S=' + snap + ';',
+    '    const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");',
+    '    let W=0,H=0,DPR=1,orbs=[];',
+    '    function makeOrbs(){orbs=S.orbs.map(color=>({color,phx:Math.random()*Math.PI*2,phy:Math.random()*Math.PI*2,fx:0.05+Math.random()*0.1,fy:0.05+Math.random()*0.1,ax:0.08+Math.random()*0.12,ay:0.08+Math.random()*0.12,cx:0.5+(Math.random()-0.5)*0.26,cy:0.5+(Math.random()-0.5)*0.26,sizeMul:0.75+Math.random()*0.6,breathPh:Math.random()*Math.PI*2,breathFreq:0.15+Math.random()*0.25}));}',
+    '    function resize(){DPR=Math.min(window.devicePixelRatio||1,2);const r=canvas.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);}',
+    '    const _p=document.createElement("canvas").getContext("2d");',
+    '    function toRGB(c){_p.fillStyle="#000";_p.fillStyle=c;const s=_p.fillStyle;if(s[0]==="#"){const h=s.length===4?s.slice(1).split("").map(x=>x+x).join(""):s.slice(1);return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}const m=s.match(/\\d+(\\.\\d+)?/g);return m?[+m[0],+m[1],+m[2]]:[120,120,255];}',
+    '    const start=performance.now();',
+    '    function frame(now){const t=(now-start)/1000,tt=t*S.speed,ms=Math.min(W,H);ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation="lighter";for(const o of orbs){const x=(o.cx+Math.sin(tt*o.fx*Math.PI+o.phx)*o.ax)*W,y=(o.cy+Math.cos(tt*o.fy*Math.PI+o.phy)*o.ay)*H,br=1+0.18*Math.sin(tt*o.breathFreq*Math.PI+o.breathPh),r=ms*S.blobSize*o.sizeMul*br,[rr,gg,bb]=toRGB(o.color),g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,"rgba("+rr+","+gg+","+bb+","+(0.95*S.glow).toFixed(3)+")");g.addColorStop(0.45,"rgba("+rr+","+gg+","+bb+","+(0.45*S.glow).toFixed(3)+")");g.addColorStop(1,"rgba("+rr+","+gg+","+bb+",0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}ctx.globalCompositeOperation="source-over";requestAnimationFrame(frame);}',
+    '    function buildGrain(){const s=90,gc=document.createElement("canvas");gc.width=gc.height=s;const gx=gc.getContext("2d"),img=gx.createImageData(s,s);for(let i=0;i<img.data.length;i+=4){const v=(Math.random()*255)|0;img.data[i]=img.data[i+1]=img.data[i+2]=v;img.data[i+3]=255;}gx.putImageData(img,0,0);document.getElementById("g").style.backgroundImage="url("+gc.toDataURL()+")";}',
+    '    buildGrain();resize();makeOrbs();requestAnimationFrame(frame);',
+    '    let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(resize,120);});',
+    '  })();',
+    '  <\/script>',
+    '</body>',
+    '</html>',
+  ].join('\n');
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'animated-orb.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+buildGrain();
+resize();
+buildPanel();
+applyState();
+requestAnimationFrame(frame);
+
+let rzT;
+window.addEventListener('resize', () => {
+  clearTimeout(rzT);
+  rzT = setTimeout(resize, 120);
+});
+
+})();
+</script>
+</body>
+</html>
