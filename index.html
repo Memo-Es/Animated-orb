@@ -17,7 +17,6 @@
   --accent:       #FAF8F5;
   --radius:       6px;
   --t-fast:       150ms ease;
-  --t-base:       200ms ease;
 }
 * { box-sizing: border-box; }
 html, body {
@@ -36,7 +35,6 @@ html, body {
 
 /* ── Stage ── */
 .stage {
-  position: relative;
   padding: 28px 32px 20px 32px;
   display: flex; flex-direction: column;
   overflow: hidden;
@@ -49,32 +47,35 @@ html, body {
 .stage-meta { font-size: 12px; color: var(--text-dimmer); font-variant-numeric: tabular-nums; }
 .stage-meta strong { color: var(--text-dim); font-weight: 500; }
 
-/* ── Preview frame ── */
+/* ── Preview ── */
 .preview-frame {
-  flex: 1;
+  flex: 1; min-height: 0;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  min-height: 0;
 }
 
-/* Orb layers */
-.orb-noise {
+/* Orb layers — matching the reference architecture exactly */
+.orb-texture {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
   pointer-events: none;
 }
-.orb-blobs {
+.orb-goo {
   position: absolute; inset: 0;
+  will-change: filter;
 }
-.orb-blobs canvas {
+.orb-goo canvas {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   display: block;
 }
-.orb-tint {
+.orb-overlay {
   position: absolute; inset: 0;
   mix-blend-mode: overlay;
   pointer-events: none;
@@ -95,7 +96,7 @@ html, body {
 .orb-vignette {
   position: absolute; inset: 0;
   pointer-events: none;
-  background: radial-gradient(120% 100% at 50% 50%, transparent 50%, rgba(0,0,0,0.65) 100%);
+  background: radial-gradient(120% 100% at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%);
 }
 
 /* Export button */
@@ -112,9 +113,7 @@ html, body {
 .export-btn:hover { background: rgba(20,20,20,0.95); }
 
 /* Stage actions */
-.stage-actions {
-  display: flex; gap: 8px; margin-top: 16px; flex-shrink: 0;
-}
+.stage-actions { display: flex; gap: 8px; margin-top: 16px; flex-shrink: 0; }
 .btn {
   background: transparent; color: var(--text);
   border: 1px solid rgba(255,255,255,0.12);
@@ -124,15 +123,14 @@ html, body {
 }
 .btn:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.22); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
-.btn.primary:hover { background: #fff; border-color: #fff; color: var(--bg); }
+.btn.primary:hover { background: #fff; color: var(--bg); }
 
 /* ── Panel ── */
 .panel {
   background: var(--panel);
   border-left: 1px solid var(--panel-border);
   padding: 28px 24px 36px 24px;
-  overflow-y: auto;
-  max-height: 100vh;
+  overflow-y: auto; max-height: 100vh;
   position: sticky; top: 0;
 }
 .panel::-webkit-scrollbar { width: 3px; }
@@ -145,12 +143,10 @@ html, body {
 .panel-title { font-weight: 300; font-size: 28px; letter-spacing: -0.03em; margin: 0 0 8px 0; }
 .panel-sub { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin: 0 0 24px 0; }
 
-/* ── Sections ── */
 .section { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--panel-border); }
 .section:last-child { border-bottom: none; margin-bottom: 0; }
 .section-label { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dimmer); margin-bottom: 12px; }
 
-/* ── Fields ── */
 .field { margin-bottom: 14px; }
 .field:last-child { margin-bottom: 0; }
 .field-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
@@ -174,7 +170,6 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%; cursor: pointer; border: none;
 }
 
-/* ── Color rows ── */
 .color-list { display: flex; flex-direction: column; gap: 8px; }
 .color-entry {
   display: flex; align-items: center; gap: 8px;
@@ -201,39 +196,31 @@ input[type="range"]::-moz-range-thumb {
 .add-btn {
   background: transparent; border: 1px solid rgba(255,255,255,0.1);
   color: var(--text-dimmer); font-family: inherit; font-size: 12px;
-  padding: 9px; border-radius: var(--radius); cursor: pointer; width: 100%;
-  margin-top: 8px;
+  padding: 9px; border-radius: var(--radius); cursor: pointer; width: 100%; margin-top: 8px;
   transition: color var(--t-fast), border-color var(--t-fast);
 }
 .add-btn:hover { color: var(--text-dim); border-color: rgba(255,255,255,0.22); }
 
-/* Inline color pick for bg */
-.bg-row {
-  display: flex; align-items: center; gap: 10px;
-  background: #0a0a0a; border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--radius); padding: 8px 10px;
-}
-.bg-label { font-size: 12px; color: var(--text-dim); font-family: ui-monospace, monospace; flex: 1; }
-
-/* ── Toggle ── */
-.toggle-row { display: flex; justify-content: space-between; align-items: center; }
-.toggle {
-  width: 36px; height: 20px; background: rgba(255,255,255,0.1);
-  border-radius: 10px; position: relative; cursor: pointer;
-  transition: background var(--t-fast); border: none; padding: 0;
-  flex-shrink: 0;
-}
-.toggle.on { background: var(--text); }
-.toggle::after {
-  content: ''; position: absolute; top: 2px; left: 2px;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: rgba(250,248,245,0.45);
-  transition: transform var(--t-fast), background var(--t-fast);
-}
-.toggle.on::after { transform: translateX(16px); background: var(--bg); }
-
 .footer-note { font-size: 11px; color: var(--text-dimmer); line-height: 1.5; margin-top: 20px; }
 </style>
+
+<!-- Goo SVG filter — same filter as the reference, NOT the ElevenLabs feFlood pipeline.
+     The ElevenLabs filter is applied to their noise image; for the canvas blobs the
+     classic blur → threshold → soft-blur chain is correct. -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+  <defs>
+    <filter id="goo" color-interpolation-filters="sRGB"
+            x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur" id="gooBlur1"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 14 -5.88"
+        result="goo" id="gooMatrix"/>
+      <feGaussianBlur in="goo" stdDeviation="6" result="soft" id="gooBlur2"/>
+      <feComposite in="soft" in2="soft" operator="over"/>
+    </filter>
+  </defs>
+</svg>
+
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
@@ -241,38 +228,21 @@ input[type="range"]::-moz-range-thumb {
 <body>
 <div id="root"></div>
 
-<!-- Hidden SVG: filter + grain (rendered once, referenced by id) -->
-<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
-  <defs>
-    <filter id="goo-bloom" color-interpolation-filters="sRGB"
-            x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
-      <feColorMatrix in="blur" type="matrix"
-        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 100 -1"
-        result="fused"/>
-      <feFlood x="0" y="0" width="100%" height="100%" result="flood"/>
-      <feComposite in="flood" in2="fused" operator="out" result="matte"/>
-      <feComposite in="matte" in2="SourceGraphic" operator="atop" result="colored"/>
-      <feGaussianBlur in="colored" stdDeviation="8"/>
-    </filter>
-  </defs>
-</svg>
-
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback, useMemo } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
-// ── Defaults ──────────────────────────────────────────────────────────────────
+// ── Defaults (matching the reference file) ────────────────────────────────────
 const DEFAULTS = {
-  bg:              '#09090f',
-  orbs:            ['#5b3fff','#1a7cff','#00c2c7','#b03fff','#ff3fa4'],
+  bg:              '#07070b',
+  orbs:            ['#6d5cff','#2f6bff','#00c2c7','#b14bff','#ff5ca8'],
+  blobSize:        0.42,
   speed:           1.0,
-  blobSize:        0.38,
-  gooBlur:         8,
-  gooCutoff:       100,
-  glow:            0.92,
-  grain:           true,
-  overlayTint:     '#6478ff',
-  overlayStrength: 0.18,
+  gooBlur:         18,
+  gooCutoff:       14,
+  glow:            0.9,
+  grain:           0.06,
+  overlayTint:     '#aab4ff',
+  overlayStrength: 0.35,
 };
 
 const NEW_COLORS = ['#ff7b54','#ffcc5c','#96e6a1','#56cbf9','#e040fb','#ff4081','#64ffda','#ffd460'];
@@ -280,110 +250,107 @@ let _colorIdx = 0;
 
 function cloneDefaults() { return JSON.parse(JSON.stringify(DEFAULTS)); }
 
-// ── Color utility ─────────────────────────────────────────────────────────────
-const _probe = document.createElement('canvas').getContext('2d');
-function toRGB(color) {
-  _probe.fillStyle = '#000';
-  _probe.fillStyle = color;
-  const s = _probe.fillStyle;
-  if (s[0] === '#') {
-    const h = s.length === 4 ? s.slice(1).split('').map(c => c+c).join('') : s.slice(1);
-    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
-  }
-  const m = s.match(/\d+(\.\d+)?/g);
-  return m ? [+m[0],+m[1],+m[2]] : [120,120,255];
-}
-
-// ── Grain canvas (built once) ─────────────────────────────────────────────────
+// ── Grain tile (built once) ───────────────────────────────────────────────────
 function buildGrainUrl() {
   const s = 90, gc = document.createElement('canvas');
   gc.width = gc.height = s;
-  const gx = gc.getContext('2d');
-  const img = gx.createImageData(s, s);
+  const gx = gc.getContext('2d'), img = gx.createImageData(s, s);
   for (let i = 0; i < img.data.length; i += 4) {
     const v = (Math.random() * 255) | 0;
-    img.data[i] = img.data[i+1] = img.data[i+2] = v;
-    img.data[i+3] = 255;
+    img.data[i] = img.data[i+1] = img.data[i+2] = v; img.data[i+3] = 255;
   }
   gx.putImageData(img, 0, 0);
   return gc.toDataURL();
 }
 const GRAIN_URL = buildGrainUrl();
 
-// ── Canvas orb renderer ───────────────────────────────────────────────────────
+// ── Color utility ─────────────────────────────────────────────────────────────
+const _probe = document.createElement('canvas').getContext('2d');
+function toRGB(color) {
+  _probe.fillStyle = '#000'; _probe.fillStyle = color;
+  const s = _probe.fillStyle;
+  if (s[0] === '#') {
+    const h = s.length === 4 ? s.slice(1).split('').map(c=>c+c).join('') : s.slice(1);
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  const m = s.match(/\d+(\.\d+)?/g);
+  return m ? [+m[0],+m[1],+m[2]] : [120,120,255];
+}
+
+// ── Live filter sync ──────────────────────────────────────────────────────────
+function syncFilter(gooBlur, gooCutoff) {
+  document.getElementById('gooBlur1').setAttribute('stdDeviation', gooBlur);
+  document.getElementById('gooMatrix').setAttribute('values',
+    `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${gooCutoff} ${-(gooCutoff * 0.42).toFixed(2)}`);
+}
+
+// ── Canvas renderer ───────────────────────────────────────────────────────────
 function OrbCanvas({ orbs, speed, blobSize, glow }) {
   const canvasRef = useRef(null);
-  const stateRef  = useRef({ orbs: [], W: 0, H: 0, DPR: 1 });
+  const orbsRef   = useRef([]);
+  const propsRef  = useRef({ orbs, speed, blobSize, glow });
   const rafRef    = useRef(null);
-  const startRef  = useRef(performance.now());
 
-  // Sync props into ref without triggering re-renders
-  const propsRef = useRef({ orbs, speed, blobSize, glow });
   useEffect(() => { propsRef.current = { orbs, speed, blobSize, glow }; }, [orbs, speed, blobSize, glow]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx    = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
+    let W = 0, H = 0, DPR = 1;
 
     function resize() {
-      const dpr  = Math.min(window.devicePixelRatio || 1, 2);
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
       const rect = canvas.getBoundingClientRect();
-      const W = Math.max(1, rect.width);
-      const H = Math.max(1, rect.height);
-      canvas.width  = Math.round(W * dpr);
-      canvas.height = Math.round(H * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      stateRef.current.W   = W;
-      stateRef.current.H   = H;
-      stateRef.current.DPR = dpr;
+      W = Math.max(1, rect.width); H = Math.max(1, rect.height);
+      canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     }
 
     function syncOrbs(colors) {
-      const prev = stateRef.current.orbs;
-      // update colors for existing
+      const prev = orbsRef.current;
       for (let i = 0; i < Math.min(colors.length, prev.length); i++) prev[i].color = colors[i];
-      // add new
       while (prev.length < colors.length) {
         const i = prev.length;
         prev.push({
           color:      colors[i],
           phx:        Math.random() * Math.PI * 2,
           phy:        Math.random() * Math.PI * 2,
-          fx:         0.04 + Math.random() * 0.08,
-          fy:         0.04 + Math.random() * 0.08,
-          ax:         0.14 + Math.random() * 0.18,
-          ay:         0.14 + Math.random() * 0.18,
-          cx:         0.3  + Math.random() * 0.4,
-          cy:         0.3  + Math.random() * 0.4,
-          sizeMul:    0.55 + Math.random() * 0.5,
+          fx:         0.05 + Math.random() * 0.1,
+          fy:         0.05 + Math.random() * 0.1,
+          // Small amplitude — orbs cluster near center like the reference
+          ax:         0.08 + Math.random() * 0.12,
+          ay:         0.08 + Math.random() * 0.12,
+          cx:         0.5  + (Math.random() - 0.5) * 0.26,
+          cy:         0.5  + (Math.random() - 0.5) * 0.26,
+          sizeMul:    0.75 + Math.random() * 0.6,
           breathPh:   Math.random() * Math.PI * 2,
-          breathFreq: 0.12 + Math.random() * 0.2,
+          breathFreq: 0.15 + Math.random() * 0.25,
         });
       }
       prev.length = colors.length;
     }
 
+    const start = performance.now();
     function frame(now) {
       const { orbs: colors, speed, blobSize, glow } = propsRef.current;
       syncOrbs(colors);
-      const { W, H, orbs: blobs } = stateRef.current;
-      const t  = (now - startRef.current) / 1000;
+      const t = (now - start) / 1000;
       const tt = t * speed;
       const ms = Math.min(W, H);
 
       ctx.clearRect(0, 0, W, H);
       ctx.globalCompositeOperation = 'lighter';
 
-      for (const o of blobs) {
+      for (const o of orbsRef.current) {
         const x = (o.cx + Math.sin(tt * o.fx * Math.PI + o.phx) * o.ax) * W;
         const y = (o.cy + Math.cos(tt * o.fy * Math.PI + o.phy) * o.ay) * H;
-        const br = 1 + 0.15 * Math.sin(tt * o.breathFreq * Math.PI + o.breathPh);
+        const br = 1 + 0.18 * Math.sin(tt * o.breathFreq * Math.PI + o.breathPh);
         const r  = ms * blobSize * o.sizeMul * br;
         const [rr, gg, bb] = toRGB(o.color);
         const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        g.addColorStop(0,    `rgba(${rr},${gg},${bb},${(glow).toFixed(3)})`);
-        g.addColorStop(0.4,  `rgba(${rr},${gg},${bb},${(glow * 0.5).toFixed(3)})`);
-        g.addColorStop(0.75, `rgba(${rr},${gg},${bb},${(glow * 0.12).toFixed(3)})`);
+        // Gradient stops matching the reference
+        g.addColorStop(0,    `rgba(${rr},${gg},${bb},${(0.95 * glow).toFixed(3)})`);
+        g.addColorStop(0.45, `rgba(${rr},${gg},${bb},${(0.45 * glow).toFixed(3)})`);
         g.addColorStop(1,    `rgba(${rr},${gg},${bb},0)`);
         ctx.fillStyle = g;
         ctx.beginPath();
@@ -399,10 +366,7 @@ function OrbCanvas({ orbs, speed, blobSize, glow }) {
     const ro = new ResizeObserver(() => { clearTimeout(rzT); rzT = setTimeout(resize, 80); });
     ro.observe(canvas);
     rafRef.current = requestAnimationFrame(frame);
-    return () => {
-      cancelAnimationFrame(rafRef.current);
-      ro.disconnect();
-    };
+    return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
   }, []);
 
   return <canvas ref={canvasRef} />;
@@ -422,91 +386,62 @@ function Slider({ label, value, min, max, step, onChange, format }) {
   );
 }
 
-// ── Toggle ────────────────────────────────────────────────────────────────────
-function Toggle({ label, value, onChange }) {
-  return (
-    <div className="field toggle-row">
-      <div className="field-name">{label}</div>
-      <button className={`toggle ${value ? 'on' : ''}`} onClick={() => onChange(!value)} />
-    </div>
-  );
-}
-
 // ── App ───────────────────────────────────────────────────────────────────────
 function App() {
   const [S, setS] = useState(cloneDefaults);
+  const set = useCallback(patch => setS(prev => ({ ...prev, ...patch })), []);
 
-  const set = useCallback((patch) => setS(prev => ({ ...prev, ...patch })), []);
+  // Keep filter in sync with slider values
+  useEffect(() => { syncFilter(S.gooBlur, S.gooCutoff); }, [S.gooBlur, S.gooCutoff]);
 
-  const updateOrb = (i, val) => {
-    const next = [...S.orbs]; next[i] = val; set({ orbs: next });
-  };
-  const removeOrb = (i) => {
-    if (S.orbs.length <= 1) return;
-    set({ orbs: S.orbs.filter((_, j) => j !== i) });
-  };
-  const addOrb = () => {
-    if (S.orbs.length >= 12) return;
-    set({ orbs: [...S.orbs, NEW_COLORS[_colorIdx++ % NEW_COLORS.length]] });
-  };
-  const reset = () => { _colorIdx = 0; setS(cloneDefaults()); };
+  const updateOrb = (i, val) => { const next = [...S.orbs]; next[i] = val; set({ orbs: next }); };
+  const removeOrb = (i) => { if (S.orbs.length > 1) set({ orbs: S.orbs.filter((_,j) => j !== i) }); };
+  const addOrb    = () => { if (S.orbs.length < 12) set({ orbs: [...S.orbs, NEW_COLORS[_colorIdx++ % NEW_COLORS.length]] }); };
+  const reset     = () => { _colorIdx = 0; setS(cloneDefaults()); };
 
-  const orbCount = S.orbs.length;
-
-  // Overlay gradient style
-  const tintStyle = {
-    background: `radial-gradient(ellipse 80% 60% at 50% 40%, ${S.overlayTint} 0%, transparent 70%)`,
+  const overlayStyle = {
+    background: `radial-gradient(120% 120% at 50% 0%, ${S.overlayTint} 0%, transparent 55%)`,
     opacity: S.overlayStrength,
   };
 
   return (
     <div className="app">
-
-      {/* ── Left: stage ── */}
       <div className="stage">
         <div className="stage-header">
           <h1 className="stage-title">Animated Orb</h1>
           <div className="stage-meta">
-            <strong>orbs</strong> {orbCount} ·{' '}
-            <strong>speed</strong> {S.speed.toFixed(1)}x ·{' '}
+            <strong>orbs</strong> {S.orbs.length} ·{' '}
+            <strong>speed</strong> {S.speed.toFixed(1)}× ·{' '}
             <strong>glow</strong> {S.glow.toFixed(2)}
           </div>
         </div>
 
         <div className="preview-frame" style={{ background: S.bg }}>
+          {/* Layer 1: noise texture, soft-light blend */}
+          <img className="orb-texture" alt="" aria-hidden="true"
+            src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAA00lEQVR42gHIADf/Af788OwBDv4BAP8AAPz+APv7/+Xu+wYEBAHf9v7q9/4GBAMIBQADAQAFAPj6+O/8/QsBksLN5fUQ/P3+DAT1DgLuCvvfBP/zHx84AWCfrfL6FO/kzQH01wD03QD++PwGHBseNAGw2erZ5PDGwqX04cUA+/v7/gX3+wMJChABwuf3BP7vubul5NzP6urt7O33x9fCRUBwAYKlsCce+//83Nfb1t3j+NHU4RQGGkpPXAGwwcHa3MkiKRsDBg33+Qnf2t8UCw0nJiufFm95mfw9JgAAAABJRU5ErkJggg==" />
 
-          {/* Noise texture */}
-          <svg className="orb-noise" aria-hidden="true">
-            <image width="100%" height="100%" preserveAspectRatio="xMidYMid slice"
-              href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAA20lEQVR42gHIADf/Af788OwBDv4BAP8AAPz+APv7/+Xu+wYEBAHf9v7q9/4GBAMIBQADAQAFAPj6+O/8/QsBksLN5fUQ/P3+DAT1DgLuCvvfBP/zHx84AWCfrfL6FO/kzQH01wD03QD++PwGHBseNAGw2erZ5PDGwqX04cUA+/v7/gX3+wMJChABwuf3BP7vubul5NzP6urt7O33x9fCRUBwAYKlsCce+//83Nfb1t3j+NHU4RQGGkpPXAGwwcHa3MkiKRsDBg33+Qnf2t8UCw0nJiufFm95mfw9JgAAAABJRU5ErkJggg=="
-            />
-          </svg>
-
-          {/* Blobs with filter */}
-          <div className="orb-blobs" style={{ filter: 'url(#goo-bloom)' }}>
-            <OrbCanvas
-              orbs={S.orbs} speed={S.speed}
-              blobSize={S.blobSize} glow={S.glow}
-            />
+          {/* Layer 2: canvas blobs through goo filter */}
+          <div className="orb-goo" style={{ filter: 'url(#goo)' }}>
+            <OrbCanvas orbs={S.orbs} speed={S.speed} blobSize={S.blobSize} glow={S.glow} />
           </div>
 
-          {/* Overlay tint */}
-          <div className="orb-tint" style={tintStyle} />
+          {/* Layer 3: overlay sheen */}
+          <div className="orb-overlay" style={overlayStyle} />
 
-          {/* Film grain */}
-          {S.grain && (
-            <div className="orb-grain" style={{ backgroundImage: `url(${GRAIN_URL})` }} />
-          )}
+          {/* Layer 4: film grain — opacity is the key, was missing before */}
+          <div className="orb-grain" style={{
+            backgroundImage: `url(${GRAIN_URL})`,
+            opacity: S.grain,
+          }} />
 
-          {/* Vignette */}
+          {/* Layer 5: vignette */}
           <div className="orb-vignette" />
 
-          {/* Export */}
           <button className="export-btn" onClick={() => exportHtml(S)}>
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
               <path d="M6.5 1.5v7M4 6l2.5 2.5L9 6M1.5 11h10"
-                stroke="currentColor" strokeWidth="1.4"
-                strokeLinecap="round" strokeLinejoin="round"/>
+                stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             Export
           </button>
@@ -518,7 +453,7 @@ function App() {
         </div>
       </div>
 
-      {/* ── Right: panel ── */}
+      {/* ── Panel ── */}
       <aside className="panel">
         <div className="panel-brand">
           <div className="panel-brand-dot" />
@@ -526,8 +461,7 @@ function App() {
         </div>
         <h2 className="panel-title">Animated Orb</h2>
         <p className="panel-sub">
-          Soft glowing blobs fused by an SVG goo-bloom filter. Adjust palette,
-          motion, and atmosphere — then export a standalone HTML file.
+          Soft glowing blobs fused by a classic goo filter. Adjust colors, motion, and atmosphere — then export a standalone HTML file.
         </p>
 
         {/* Palette */}
@@ -538,11 +472,11 @@ function App() {
               <div className="field-name">Background</div>
               <div className="field-value">{S.bg.toUpperCase()}</div>
             </div>
-            <div className="bg-row">
+            <div className="color-entry">
               <div className="swatch-wrap" style={{ background: S.bg }}>
                 <input type="color" value={S.bg} onChange={e => set({ bg: e.target.value })} />
               </div>
-              <span className="bg-label">{S.bg.toUpperCase()}</span>
+              <span className="color-label">{S.bg.toUpperCase()}</span>
             </div>
           </div>
           <div className="field">
@@ -557,7 +491,7 @@ function App() {
                     <input type="color" value={c} onChange={e => updateOrb(i, e.target.value)} />
                   </div>
                   <span className="color-label">Orb {i + 1} · {c.toUpperCase()}</span>
-                  <button className="remove-btn" onClick={() => removeOrb(i)} title="Remove">✕</button>
+                  <button className="remove-btn" onClick={() => removeOrb(i)}>✕</button>
                 </div>
               ))}
             </div>
@@ -568,54 +502,56 @@ function App() {
         {/* Motion */}
         <div className="section">
           <div className="section-label">Motion</div>
-          <Slider label="Speed" value={S.speed} min={0.05} max={3} step={0.05}
+          <Slider label="Speed" value={S.speed} min={0.1} max={3} step={0.05}
             onChange={v => set({ speed: v })} format={v => v.toFixed(2) + '×'} />
-          <Slider label="Blob size" value={S.blobSize} min={0.1} max={0.7} step={0.01}
+          <Slider label="Blob size" value={S.blobSize} min={0.1} max={0.8} step={0.01}
             onChange={v => set({ blobSize: v })} format={v => v.toFixed(2)} />
         </div>
 
         {/* Appearance */}
         <div className="section">
           <div className="section-label">Appearance</div>
-          <Slider label="Glow" value={S.glow} min={0.1} max={1.5} step={0.01}
+          <Slider label="Glow" value={S.glow} min={0} max={1.5} step={0.05}
             onChange={v => set({ glow: v })} format={v => v.toFixed(2)} />
-          <Toggle label="Film grain" value={S.grain} onChange={v => set({ grain: v })} />
+          <Slider label="Film grain" value={S.grain} min={0} max={0.2} step={0.005}
+            onChange={v => set({ grain: v })} format={v => v.toFixed(3)} />
           <div className="field" style={{ marginTop: 14 }}>
             <div className="field-row">
               <div className="field-name">Overlay tint</div>
               <div className="field-value">{S.overlayTint.toUpperCase()}</div>
             </div>
-            <div className="bg-row">
+            <div className="color-entry">
               <div className="swatch-wrap" style={{ background: S.overlayTint }}>
                 <input type="color" value={S.overlayTint} onChange={e => set({ overlayTint: e.target.value })} />
               </div>
-              <span className="bg-label">{S.overlayTint.toUpperCase()}</span>
+              <span className="color-label">{S.overlayTint.toUpperCase()}</span>
             </div>
           </div>
-          <Slider label="Overlay strength" value={S.overlayStrength} min={0} max={0.6} step={0.01}
+          <Slider label="Overlay strength" value={S.overlayStrength} min={0} max={1} step={0.05}
             onChange={v => set({ overlayStrength: v })} format={v => v.toFixed(2)} />
         </div>
 
-        {/* Filter */}
+        {/* Fusion */}
         <div className="section">
           <div className="section-label">Fusion filter</div>
-          <Slider label="Blur radius" value={S.gooBlur} min={2} max={20} step={0.5}
+          <Slider label="Blur radius" value={S.gooBlur} min={5} max={40} step={1}
             onChange={v => set({ gooBlur: v })} format={v => v + 'px'} />
-          <Slider label="Cutoff" value={S.gooCutoff} min={10} max={200} step={5}
+          <Slider label="Cutoff" value={S.gooCutoff} min={2} max={30} step={1}
             onChange={v => set({ gooCutoff: v })} format={v => String(v)} />
         </div>
 
         <div className="footer-note">
-          ElevenLabs-style goo-bloom filter: blur → alpha threshold → flood matte → restore colors → bloom. Built by <a href="https://github.com/Memo-Es" style={{color:'var(--text-dim)'}}>Memo-Es</a> · Claude-assisted
+          Built by <a href="https://github.com/Memo-Es" style={{color:'var(--text-dim)'}}>Memo-Es</a> · Claude-assisted
         </div>
       </aside>
     </div>
   );
 }
 
-// ── Export standalone HTML ────────────────────────────────────────────────────
+// ── Export ────────────────────────────────────────────────────────────────────
 function exportHtml(S) {
   const snap = JSON.stringify(S);
+  const cutoffOffset = -(S.gooCutoff * 0.42).toFixed(2);
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -625,47 +561,44 @@ function exportHtml(S) {
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;overflow:hidden;background:${S.bg};}
-.scene{position:fixed;inset:0;isolation:isolate;}
-.noise{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
-.blobs{position:absolute;inset:0;}
-.blobs canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
-.tint{position:absolute;inset:0;mix-blend-mode:overlay;pointer-events:none;}
+.stage{position:fixed;inset:0;overflow:hidden;background:${S.bg};isolation:isolate;}
+.texture{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.5;mix-blend-mode:soft-light;pointer-events:none;}
+.goo{position:absolute;inset:0;filter:url(#goo);will-change:filter;}
+.goo canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+.overlay{position:absolute;inset:0;mix-blend-mode:overlay;pointer-events:none;}
 .grain{position:absolute;inset:-50%;width:200%;height:200%;pointer-events:none;mix-blend-mode:overlay;background-size:180px 180px;animation:gs .6s steps(2) infinite;}
 @keyframes gs{0%{transform:translate(0,0)}50%{transform:translate(-6%,4%)}100%{transform:translate(3%,-5%)}}
-.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 100% at 50% 50%,transparent 50%,rgba(0,0,0,.65) 100%);}
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 100% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%);}
 </style>
 </head>
 <body>
-<div class="scene">
-  <svg class="noise" aria-hidden="true"><defs>
-    <filter id="f" color-interpolation-filters="sRGB" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="${S.gooBlur}" result="b"/>
-      <feColorMatrix in="b" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 ${S.gooCutoff} -1" result="u"/>
-      <feFlood x="0" y="0" width="100%" height="100%" result="fl"/>
-      <feComposite in="fl" in2="u" operator="out" result="m"/>
-      <feComposite in="m" in2="SourceGraphic" operator="atop" result="c"/>
-      <feGaussianBlur in="c" stdDeviation="${S.gooBlur}"/>
-    </filter>
-  </defs>
-  <image width="100%" height="100%" preserveAspectRatio="xMidYMid slice" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAA20lEQVR42gHIADf/Af788OwBDv4BAP8AAPz+APv7/+Xu+wYEBAHf9v7q9/4GBAMIBQADAQAFAPj6+O/8/QsBksLN5fUQ/P3+DAT1DgLuCvvfBP/zHx84AWCfrfL6FO/kzQH01wD03QD++PwGHBseNAGw2erZ5PDGwqX04cUA+/v7/gX3+wMJChABwuf3BP7vubul5NzP6urt7O33x9fCRUBwAYKlsCce+//83Nfb1t3j+NHU4RQGGkpPXAGwwcHa3MkiKRsDBg33+Qnf2t8UCw0nJiufFm95mfw9JgAAAABJRU5ErkJggg=="/>
-  </svg>
-  <div class="blobs" style="filter:url(#f)"><canvas id="c"></canvas></div>
-  <div class="tint" style="background:radial-gradient(ellipse 80% 60% at 50% 40%,${S.overlayTint} 0%,transparent 70%);opacity:${S.overlayStrength}"></div>
-  ${S.grain ? '<div class="grain" id="g"></div>' : ''}
+<div class="stage">
+  <img class="texture" alt="" aria-hidden="true" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAA00lEQVR42gHIADf/Af788OwBDv4BAP8AAPz+APv7/+Xu+wYEBAHf9v7q9/4GBAMIBQADAQAFAPj6+O/8/QsBksLN5fUQ/P3+DAT1DgLuCvvfBP/zHx84AWCfrfL6FO/kzQH01wD03QD++PwGHBseNAGw2erZ5PDGwqX04cUA+/v7/gX3+wMJChABwuf3BP7vubul5NzP6urt7O33x9fCRUBwAYKlsCce+//83Nfb1t3j+NHU4RQGGkpPXAGwwcHa3MkiKRsDBg33+Qnf2t8UCw0nJiufFm95mfw9JgAAAABJRU5ErkJggg==" />
+  <div class="goo"><canvas id="c"></canvas></div>
+  <div class="overlay" style="background:radial-gradient(120% 120% at 50% 0%,${S.overlayTint} 0%,transparent 55%);opacity:${S.overlayStrength}"></div>
+  <div class="grain" id="g" style="opacity:${S.grain}"></div>
   <div class="vignette"></div>
 </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <filter id="goo" color-interpolation-filters="sRGB" x="-20%" y="-20%" width="140%" height="140%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="${S.gooBlur}" result="blur"/>
+    <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 ${S.gooCutoff} ${cutoffOffset}" result="goo"/>
+    <feGaussianBlur in="goo" stdDeviation="6" result="soft"/>
+    <feComposite in="soft" in2="soft" operator="over"/>
+  </filter>
+</defs></svg>
 <script>
 (()=>{
   const S=${snap};
   const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
   let W=0,H=0,DPR=1,orbs=[];
   function resize(){DPR=Math.min(devicePixelRatio||1,2);const r=canvas.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);}
-  function makeOrbs(){orbs=S.orbs.map(color=>({color,phx:Math.random()*Math.PI*2,phy:Math.random()*Math.PI*2,fx:.04+Math.random()*.08,fy:.04+Math.random()*.08,ax:.14+Math.random()*.18,ay:.14+Math.random()*.18,cx:.3+Math.random()*.4,cy:.3+Math.random()*.4,sizeMul:.55+Math.random()*.5,breathPh:Math.random()*Math.PI*2,breathFreq:.12+Math.random()*.2}));}
+  function makeOrbs(){orbs=S.orbs.map(color=>({color,phx:Math.random()*Math.PI*2,phy:Math.random()*Math.PI*2,fx:.05+Math.random()*.1,fy:.05+Math.random()*.1,ax:.08+Math.random()*.12,ay:.08+Math.random()*.12,cx:.5+(Math.random()-.5)*.26,cy:.5+(Math.random()-.5)*.26,sizeMul:.75+Math.random()*.6,breathPh:Math.random()*Math.PI*2,breathFreq:.15+Math.random()*.25}));}
   const _p=document.createElement('canvas').getContext('2d');
   function toRGB(c){_p.fillStyle='#000';_p.fillStyle=c;const s=_p.fillStyle;if(s[0]==='#'){const h=s.length===4?s.slice(1).split('').map(x=>x+x).join(''):s.slice(1);return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}const m=s.match(/\\d+(\\.\\d+)?/g);return m?[+m[0],+m[1],+m[2]]:[120,120,255];}
   const start=performance.now();
-  function frame(now){const t=(now-start)/1000,tt=t*S.speed,ms=Math.min(W,H);ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';for(const o of orbs){const x=(o.cx+Math.sin(tt*o.fx*Math.PI+o.phx)*o.ax)*W,y=(o.cy+Math.cos(tt*o.fy*Math.PI+o.phy)*o.ay)*H,br=1+.15*Math.sin(tt*o.breathFreq*Math.PI+o.breathPh),r=ms*S.blobSize*o.sizeMul*br,[rr,gg,bb]=toRGB(o.color),g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba('+rr+','+gg+','+bb+','+S.glow.toFixed(3)+')');g.addColorStop(.4,'rgba('+rr+','+gg+','+bb+','+(S.glow*.5).toFixed(3)+')');g.addColorStop(.75,'rgba('+rr+','+gg+','+bb+','+(S.glow*.12).toFixed(3)+')');g.addColorStop(1,'rgba('+rr+','+gg+','+bb+',0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}ctx.globalCompositeOperation='source-over';requestAnimationFrame(frame);}
-  if(S.grain){const s=90,gc=document.createElement('canvas');gc.width=gc.height=s;const gx=gc.getContext('2d'),img=gx.createImageData(s,s);for(let i=0;i<img.data.length;i+=4){const v=(Math.random()*255)|0;img.data[i]=img.data[i+1]=img.data[i+2]=v;img.data[i+3]=255;}gx.putImageData(img,0,0);document.getElementById('g').style.backgroundImage='url('+gc.toDataURL()+')';}
+  function frame(now){const t=(now-start)/1000,tt=t*S.speed,ms=Math.min(W,H);ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';for(const o of orbs){const x=(o.cx+Math.sin(tt*o.fx*Math.PI+o.phx)*o.ax)*W,y=(o.cy+Math.cos(tt*o.fy*Math.PI+o.phy)*o.ay)*H,br=1+.18*Math.sin(tt*o.breathFreq*Math.PI+o.breathPh),r=ms*S.blobSize*o.sizeMul*br,[rr,gg,bb]=toRGB(o.color),g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba('+rr+','+gg+','+bb+','+(0.95*S.glow).toFixed(3)+')');g.addColorStop(.45,'rgba('+rr+','+gg+','+bb+','+(0.45*S.glow).toFixed(3)+')');g.addColorStop(1,'rgba('+rr+','+gg+','+bb+',0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}ctx.globalCompositeOperation='source-over';requestAnimationFrame(frame);}
+  const s=90,gc=document.createElement('canvas');gc.width=gc.height=s;const gx=gc.getContext('2d'),img=gx.createImageData(s,s);for(let i=0;i<img.data.length;i+=4){const v=(Math.random()*255)|0;img.data[i]=img.data[i+1]=img.data[i+2]=v;img.data[i+3]=255;}gx.putImageData(img,0,0);document.getElementById('g').style.backgroundImage='url('+gc.toDataURL()+')';
   resize();makeOrbs();requestAnimationFrame(frame);
   let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(resize,100);});
 })();
